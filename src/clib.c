@@ -135,3 +135,16 @@ char *utoa(const char *numbox, unsigned int num, unsigned int base){
 		buf[i] = numbox [num % base];
 	return buf+i+1;
 }
+
+int atoi(const char *num){
+
+	int result = 0;
+	int i = 0;
+	int mul = 1;
+	while(num[i]){
+		result = result*mul + (num[i++]-48);
+		mul = mul*10;
+	}
+	return result;
+
+}
