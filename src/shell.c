@@ -8,6 +8,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "host.h"
+#include "hash-djb2.h"
 
 extern int fibonacci(int);
 
@@ -16,6 +17,8 @@ typedef struct {
 	cmdfunc *fptr;
 	const char *desc;
 } cmdlist;
+xTaskHandle xHandle[10] = {NULL};
+int pid = 0;
 
 void ls_command(int, char **);
 void man_command(int, char **);
@@ -27,6 +30,8 @@ void host_command(int, char **);
 void mmtest_command(int, char **);
 void test_command(int, char **);
 void fib_command(int, char **);
+void new_command(int,char **);
+void kill_command(int,char **);
 
 #define MKCL(n, d) {.name=#n, .fptr=n ## _command, .desc=d}
 
@@ -40,6 +45,8 @@ cmdlist cl[]={
 	MKCL(help, "help"),
 	MKCL(test, "test new function"),
 	MKCL(fib, "fibonacci function"),
+	MKCL(new,"new a task"),
+	MKCL(kill,"kill a task")
 };
 
 int parse_command(char *str, char *argv[]){
@@ -192,6 +199,31 @@ void fib_command(int n, char *argv[]){
 	int num = atoi(argv[1]);
 	int result = fibonacci(num);
 	fio_printf(1,"\r\nresult = %d\r\n",result);
+}
+
+int kill = 0;
+int kill_num;
+void new_task(void *pvParameters){
+	fio_printf(1,"\r\nnew task is created!\r\n");
+	while(1){
+		if(kill == 1 && xHandle[kill_num]!=NULL){
+			vTaskDelete(xHandle[kill_num]);
+			kill = 0;
+		}
+	}
+}
+
+void new_command(int n,char *argv[]){
+	int id = (hash_djb2((uint8_t *)argv[1],-1))%20;
+	xTaskCreate(new_task,
+			(signed portCHAR *) argv[1],
+			64 /* stack size */, NULL, tskIDLE_PRIORITY + 1, &xHandle[id]);
+}
+
+void kill_command(int n,char *argv[]){
+	int id = (hash_djb2((uint8_t *)argv[1],-1))%20;
+	kill = 1;
+	kill_num = id;
 }
 
 cmdfunc *do_command(const char *cmd){
