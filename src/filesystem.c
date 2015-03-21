@@ -1,6 +1,7 @@
 #include "osdebug.h"
 #include "filesystem.h"
 #include "fio.h"
+#include "clib.h"
 
 #include <stdint.h>
 #include <string.h>
@@ -14,7 +15,8 @@ struct fs_t {
     fs_open_dir_t dcb;
     void * opaque;
 };
-
+extern const unsigned char _sromfs;
+extern uint32_t get_unaligned(const uint8_t * d);
 static struct fs_t fss[MAX_FS];
 
 __attribute__((constructor)) void fs_init() {
@@ -63,38 +65,51 @@ int fs_open(const char * path, int flags, int mode) {
     return -2;
 }
 
+int get_fileName(const uint8_t * romfs){
+	const uint8_t * meta;
+
+	for (meta = romfs; get_unaligned(meta) && get_unaligned(meta + 4); meta += get_unaligned(meta + 4) + 12) {
+		fio_printf(1,"%s\r\n",meta+12);
+	}
+	return -1;
+}
+
 static int root_opendir(){
-    return OPENDIR_NOTFOUNDFS;        
+	int r = get_fileName(&_sromfs);
+	if(r==-1)
+		return OPENDIR_NOTFOUNDFS; 
+	else
+		return r;
 }
 
 int fs_opendir(const char * path){
-    const char * slash;
-    uint32_t hash;
-    
-    if ( path[0] == '\0' || (path[0] == '/' && path[1] == '\0') ){
-        return root_opendir();
-    }
-    
-    while (path[0] == '/')
-        path++;
-    
-    slash = strchr(path, '/');
-    if (!slash)
-        slash = path + strlen(path);
+	const char * slash;
+	uint32_t hash;
 
-    hash = hash_djb2((const uint8_t *) path, slash - path);
-    
-    if(*(slash) == '\0'){
-        path = "";
-    }else{
-        path = slash + 1;
-    }
-    
-    for (int i = 0; i < MAX_FS; i++) {
-        if (fss[i].hash == hash)
-            return fss[i].dcb(fss[i].opaque, path);
-    }    
+	if ( path[0] == '\0' || (path[0] == '/' && path[1] == '\0') ){
+		return root_opendir();
+	}
 
-    return OPENDIR_NOTFOUNDFS;
+	while (path[0] == '/')
+		path++;
+
+	slash = strchr(path, '/');
+	if (!slash)
+		slash = path + strlen(path);
+
+	hash = hash_djb2((const uint8_t *) path, slash - path);
+
+	if(*(slash) == '\0'){
+		path = "";
+	}else{
+		path = slash + 1;
+	}
+
+	for (int i = 0; i < MAX_FS; i++) {
+		if (fss[i].hash == hash)
+			return fss[i].dcb(fss[i].opaque, path);
+	}    
+
+	return OPENDIR_NOTFOUNDFS;
 }
 

@@ -16,7 +16,7 @@ struct romfs_fds_t {
 
 static struct romfs_fds_t romfs_fds[MAX_FDS];
 
-static uint32_t get_unaligned(const uint8_t * d) {
+uint32_t get_unaligned(const uint8_t * d) {
     return ((uint32_t) d[0]) | ((uint32_t) (d[1] << 8)) | ((uint32_t) (d[2] << 16)) | ((uint32_t) (d[3] << 24));
 }
 
