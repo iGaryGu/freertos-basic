@@ -7,6 +7,7 @@
 #include "romfs.h"
 #include "osdebug.h"
 #include "hash-djb2.h"
+#include "clib.h"
 
 struct romfs_fds_t {
     const uint8_t * file;
@@ -66,13 +67,9 @@ static off_t romfs_seek(void * opaque, off_t offset, int whence) {
 
 const uint8_t * romfs_get_file_by_hash(const uint8_t * romfs, uint32_t h, uint32_t * len) {
     const uint8_t * meta;
-
-    for (meta = romfs; get_unaligned(meta) && get_unaligned(meta + 4); meta += get_unaligned(meta + 4) + 12) {
-        if (get_unaligned(meta) == h) {
-            if (len) {
-                *len = get_unaligned(meta + 4);
-            }
-            return meta + 12;
+    for (meta = romfs; get_unaligned(meta) && get_unaligned(meta + 16); meta += get_unaligned(meta + 16) + 21) {
+        if (get_unaligned(meta + 8) == h) {
+            return meta + 20;
         }
     }
 
@@ -90,7 +87,7 @@ static int romfs_open(void * opaque, const char * path, int flags, int mode) {
     if (file) {
         r = fio_open(romfs_read, NULL, romfs_seek, NULL, NULL);
         if (r > 0) {
-            uint32_t size = get_unaligned(file - 8);
+            uint32_t size = get_unaligned(file - 4);
             const uint8_t *filestart = file;
             while(*filestart) ++filestart;
             ++filestart;

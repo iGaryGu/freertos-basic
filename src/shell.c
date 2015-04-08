@@ -90,7 +90,6 @@ int filedump(const char *filename){
 	char buf[128];
 
 	int fd=fs_open(filename, 0, O_RDONLY);
-
 	if( fd == -2 || fd == -1)
 		return fd;
 
