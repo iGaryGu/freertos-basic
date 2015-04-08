@@ -77,7 +77,8 @@ void ls_command(int n, char *argv[]){
         dir = fs_opendir("");
     }else if(n == 2){
         dir = fs_opendir(argv[1]);
-        //if(dir == )
+        if(dir == -2)
+			fio_printf(1,"directory not fount!\r\n");
     }else{
         fio_printf(1, "Too many argument!\r\n");
         return;

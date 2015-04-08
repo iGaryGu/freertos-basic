@@ -67,11 +67,26 @@ int fs_open(const char * path, int flags, int mode) {
 
 int get_fileName(const uint8_t * romfs){
 	const uint8_t * meta;
+	uint32_t level;
 
-	for (meta = romfs; get_unaligned(meta) && get_unaligned(meta + 4); meta += get_unaligned(meta + 4) + 12) {
-		fio_printf(1,"%s\r\n",meta+12);
+	//dir
+	if(get_unaligned(romfs) == 2){
+		const uint8_t *temp = romfs + get_unaligned( romfs + 16 ) + 21;
+		level = get_unaligned(temp + 4);
 	}
-	return -1;
+	//current dir
+	else if (get_unaligned(romfs) == 1){
+		level = get_unaligned( romfs + 4);
+	}
+	else
+		return -1;
+
+	for (meta = romfs; get_unaligned(meta) && get_unaligned(meta + 16); meta += get_unaligned(meta + 16) + 21) {
+		if(get_unaligned(meta+4) == level){
+			fio_printf(1,"%s\r\n",meta+20);
+		}
+	}
+	return 0;
 }
 
 static int root_opendir(){
@@ -82,34 +97,31 @@ static int root_opendir(){
 		return r;
 }
 
+const uint8_t *search_dir(const uint8_t *romfs , uint32_t hash){
+	const uint8_t * meta;
+	for(meta = romfs; get_unaligned(meta) && get_unaligned(meta + 16); meta += get_unaligned(meta + 16) + 21) {
+		int hash_temp = hash_djb2((const uint8_t *)(meta+20) , 5381);
+		if(hash_temp == hash){
+			return meta;
+		}
+	}
+	return (const uint8_t *)-1;
+}
+
 int fs_opendir(const char * path){
-	const char * slash;
 	uint32_t hash;
+	const uint8_t *dir;
 
 	if ( path[0] == '\0' || (path[0] == '/' && path[1] == '\0') ){
 		return root_opendir();
 	}
 
-	while (path[0] == '/')
-		path++;
+	hash = hash_djb2((const uint8_t *)path,5381);
 
-	slash = strchr(path, '/');
-	if (!slash)
-		slash = path + strlen(path);
-
-	hash = hash_djb2((const uint8_t *) path, slash - path);
-
-	if(*(slash) == '\0'){
-		path = "";
-	}else{
-		path = slash + 1;
-	}
-
-	for (int i = 0; i < MAX_FS; i++) {
-		if (fss[i].hash == hash)
-			return fss[i].dcb(fss[i].opaque, path);
-	}    
-
-	return OPENDIR_NOTFOUNDFS;
+	dir = search_dir(&_sromfs,hash);
+	if(dir == (const uint8_t *)-1)
+		return OPENDIR_NOTFOUNDFS;
+	return get_fileName(dir);
+	
 }
 
